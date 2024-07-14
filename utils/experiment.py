@@ -121,14 +121,14 @@ def get_experiment(arguments):
 
 
 def setup_run(exp_name, params):
-    project = "PathPlanning"
+    project = "vss-pid-tuning"
     if params.seed == 0:
         params.seed = int(time.time())
     params.method = "sac"
     wandb_run = wandb.init(
         project=project,
         name=exp_name,
-        entity="goncamateus",
+        entity="acruchi",
         config=vars(params),
         monitor_gym=True,
         mode=None if params.track else "disabled",
