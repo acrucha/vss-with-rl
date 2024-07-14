@@ -72,7 +72,7 @@ def base_hyperparams():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="Baseline")
+    parser.add_argument("--env", type=str, default="Pid")
     parser.add_argument("--setup", type=str, default="Pure")
     parser.add_argument(
         "--cuda",

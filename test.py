@@ -58,7 +58,7 @@ def main(env_id, caps):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gym-id", type=str, default="Baseline-v0")
+    parser.add_argument("--gym-id", type=str, default="Pid-v0")
     parser.add_argument(
         "--caps",
         type=lambda x: bool(strtobool(x)),
