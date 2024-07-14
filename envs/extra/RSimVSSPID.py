@@ -4,6 +4,8 @@ from rsoccer_gym.Simulators.rsim import RSimVSS
 import numpy as np
 from rsoccer_gym.Entities import Robot
 
+WHEEL_RADIUS = 0.024
+
 class RSimVSSPID(RSimVSS):
 
     def __init__(
@@ -84,8 +86,8 @@ class RSimVSSPID(RSimVSS):
 
         left_motor_speed, right_motor_speed = 0, 0
 
-        left_motor_speed = linear_velocity - (angular_velocity * self.robot_half_axis)
-        right_motor_speed = linear_velocity + (angular_velocity * self.robot_half_axis)
+        left_motor_speed = linear_velocity - (angular_velocity * WHEEL_RADIUS)
+        right_motor_speed = linear_velocity + (angular_velocity * WHEEL_RADIUS)
 
         self.last_frame = frame
 
