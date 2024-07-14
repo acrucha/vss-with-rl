@@ -81,8 +81,8 @@ def train(args, exp_name, wandb_run, artifact):
 
                 if update_actor:
                     log.update({"losses/policy_loss": policy_loss.item()})
-                if args.autotune:
-                    log.update({"losses/alpha_loss": alpha_loss.item()})
+                # if args.autotune:
+                #     log.update({"losses/alpha_loss": alpha_loss.item()})
 
         wandb.log(log, global_step)
         if global_step % 9999 == 0:
@@ -97,7 +97,7 @@ def main(params):
     exp_name = f"{params.env}-{params.setup}_{int(time.time())}"
     _display = Display(visible=0, size=(1400, 900))
     _display.start()
-    wandb_run, artifact = setup_run(exp_name, params)
+    wandb_run, artifact = setup_run(exp_name, params, params.project)
     train(params, exp_name, wandb_run, artifact)
 
 

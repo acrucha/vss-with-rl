@@ -84,8 +84,8 @@ class RSimVSSPID(RSimVSS):
 
         left_motor_speed, right_motor_speed = 0, 0
 
-        left_motor_speed = linear_velocity - (angular_velocity * self.robot_half_axis / 2)
-        right_motor_speed = linear_velocity + (angular_velocity * self.robot_half_axis / 2)
+        left_motor_speed = linear_velocity - (angular_velocity * self.robot_half_axis)
+        right_motor_speed = linear_velocity + (angular_velocity * self.robot_half_axis)
 
         self.last_frame = frame
 
