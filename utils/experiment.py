@@ -107,6 +107,7 @@ def parse_args():
     args = parser.parse_args()
     args.env = args.env.lower().title()
     args.setup = args.setup.lower().upper()
+    args.project = "vss-penalty" if "penalty" in args.env.lower() else "vss-pid-tuning" 
     return args
 
 
@@ -120,8 +121,8 @@ def get_experiment(arguments):
     return experiment
 
 
-def setup_run(exp_name, params):
-    project = "vss-pid-tuning"
+def setup_run(exp_name, params, project="vss-pid-tuning"):
+    project = project
     if params.seed == 0:
         params.seed = int(time.time())
     params.method = "sac"
