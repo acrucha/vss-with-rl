@@ -15,19 +15,19 @@ register(
     max_episode_steps=75,
 )
 
-# register(
-#     id="Baseline-v0",
-#     entry_point="envs.baseline:SSLPathPlanningBaseLineEnv",
-#     kwargs={"field_type": 2, "n_robots_yellow": 0, "repeat_action": 1},
-#     max_episode_steps=1200,
-# )
+register(
+    id="Penalty-v0",
+    entry_point="envs.penalty:VSSPenaltyEnv",
+    kwargs={"max_steps": 1200, "repeat_action": 1},
+    max_episode_steps=1200,
+)
 
-# register(
-#     id="Baseline-v1",
-#     entry_point="envs.baseline:SSLPathPlanningBaseLineEnv",
-#     kwargs={"field_type": 2, "n_robots_yellow": 0, "repeat_action": 16},
-#     max_episode_steps=75,
-# )
+register(
+    id="Penalty-v1",
+    entry_point="envs.penalty:VSSPenaltyEnv",
+    kwargs={"max_steps": 75, "repeat_action": 16},
+    max_episode_steps=75,
+)
 
 # register(
 #     id="Enhanced-v0",

@@ -83,7 +83,7 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             Target is reached or Episode length is greater than 3.5 seconds
     """
 
-    def __init__(self, render_mode=None, repeat_action=1, max_steps=500):
+    def __init__(self, render_mode=None, repeat_action=1, max_steps=1200):
         super().__init__(field_type=0, n_robots_blue=N_ROBOTS_BLUE, n_robots_yellow=N_ROBOTS_YELLOW,
                          time_step=0.025, render_mode=render_mode)
         
