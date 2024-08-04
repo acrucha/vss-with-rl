@@ -9,8 +9,16 @@ import gymnasium as gym
 import numpy as np
 import torch
 import wandb
+from utils.utils import read_folder
 
-import envs
+def get_images():
+    images = []
+    answers = []
+    images_names = []
+
+    images, answers, images_names = read_folder()
+
+    return images, answers, images_names
 
 
 def strtobool(value: str) -> bool:
@@ -20,7 +28,7 @@ def strtobool(value: str) -> bool:
     return False
 
 
-def make_env(args, idx, run_name):
+def make_env(args, idx, run_name, vision=False):
     def thunk():
         if args.capture_video and idx == 0:
             env = gym.make(args.gym_id, render_mode="rgb_array")
@@ -31,6 +39,12 @@ def make_env(args, idx, run_name):
             )
         else:
             env = gym.make(args.gym_id)
+        
+        if vision:
+            images, answers, _ = get_images()
+            j = np.random.randint(0, len(images))
+            env.set_image_and_answer(images[j], answers[j])
+                
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(args.seed)
         return env
@@ -72,8 +86,8 @@ def base_hyperparams():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="Pid")
-    parser.add_argument("--setup", type=str, default="Pure")
+    parser.add_argument("--env", type=str, default="Vss-Vision")
+    parser.add_argument("--setup", type=str, default="FSCAPS")
     parser.add_argument(
         "--cuda",
         type=lambda x: bool(strtobool(x)),
@@ -107,7 +121,8 @@ def parse_args():
     args = parser.parse_args()
     args.env = args.env.lower().title()
     args.setup = args.setup.lower().upper()
-    args.project = "vss-penalty" if "penalty" in args.env.lower() else "vss-pid-tuning" 
+    # args.project = "vss-penalty" if "penalty" in args.env.lower() else "vss-pid-tuning" 
+    args.project = "vss-vision-rl"
     return args
 
 
@@ -121,7 +136,7 @@ def get_experiment(arguments):
     return experiment
 
 
-def setup_run(exp_name, params, project="vss-pid-tuning"):
+def setup_run(exp_name, params, project="vss-vision-rl"):
     project = project
     if params.seed == 0:
         params.seed = int(time.time())
@@ -136,7 +151,6 @@ def setup_run(exp_name, params, project="vss-pid-tuning"):
         save_code=True,
     )
     artifact = wandb.Artifact("model", type="model")
-    print(vars(params))
 
     # TRY NOT TO MODIFY: seeding
     random.seed(params.seed)

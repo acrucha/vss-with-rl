@@ -19,14 +19,16 @@ from utils.experiment import setup_run
 
 def train(args, exp_name, wandb_run, artifact):
     environments = gym.vector.AsyncVectorEnv(
-        [make_env(args, i, exp_name) for i in range(args.num_envs)]
+        [make_env(args, i, exp_name, vision=True) for i in range(args.num_envs)]
     )
+
     agent = SAC(
         args, environments.single_observation_space, environments.single_action_space
     )
 
     start_time = time.time()
     obs, _ = environments.reset()
+
     log = {}
     for global_step in range(args.total_timesteps):
         if global_step < args.learning_starts:
