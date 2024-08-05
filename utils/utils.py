@@ -55,8 +55,10 @@ def read_folder(folder=TEMPLATES_FOLDER):
 def filter_color(img, color):
     import numpy as np
 
+    color = np.clip(color, 0, 255).astype(np.uint8)
+
     mask = (img[:, :, 0] == color[0]) & (img[:, :, 1] == color[1]) & (img[:, :, 2] == color[2])
-    filtered_img = np.zeros_like(img)
+    filtered_img = np.zeros_like(img, dtype=np.uint8)
     filtered_img[mask] = color
 
     return filtered_img
