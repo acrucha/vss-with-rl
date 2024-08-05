@@ -1,8 +1,9 @@
+import time
 from typing import Dict
-import gym
 import numpy as np
 import pygame
 import torch
+from utils.experiment import get_images
 import vss_vision
 import cv2
 
@@ -73,7 +74,9 @@ class VSSVisionEnv(gym.Env):
         }   
         
         self.action_space = gym.spaces.Box(low=0, high=255, shape=(ACTION_SIZE, ), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=0, high=1, shape=(2, h, w, 3), dtype=np.float32)
+        # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(2*3*h*w, ), dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(2,3,h,w), dtype=np.float32)
+
         self.actions: Dict = None
 
         self.action_spec = UnboundedContinuousTensorSpec(1)
@@ -119,12 +122,12 @@ class VSSVisionEnv(gym.Env):
 
         # Calculate environment observation, reward and done condition
         observation = self._frame_to_observations()
-        reward, done = self._calculate_reward_and_done()
+        reward, done, trunc = self._calculate_reward_and_done()
 
         if self.render_mode == "human":
             self.render()
 
-        return observation, reward, done, False, self.reward_info
+        return observation, reward, done, trunc, self.reward_info
 
     def get_vss_vision_output(self, answer, image):
         self.answer = answer
@@ -160,11 +163,13 @@ class VSSVisionEnv(gym.Env):
 
         ans_tensor = transform(ans)
 
-        obs_tensors = torch.cat([ans_tensor, img_tensor], dim=1)
+        obs_tensors = torch.stack([ans_tensor, img_tensor])
 
-        obs_tensors = torch.clamp(obs_tensors, 0, 1)
+        # tensor to numpy
+        # obs = obs_tensors.numpy().reshape(-1)
+        obs = obs_tensors.numpy()
 
-        return torch.asarray(obs_tensors)
+        return obs
 
     def _get_segmentation_output(self, action):
         commands = []
@@ -178,9 +183,13 @@ class VSSVisionEnv(gym.Env):
     
     def _calculate_reward_and_done(self):
         done = False
+        trunc = False
 
         mse_reward, sp_reward = self.calculate_rewards()
-        reward = (mse_reward + sp_reward) * 1e5
+        reward = mse_reward + sp_reward
+
+        if reward >= 1.999999:
+            done = True
 
         if done or self.steps >= self.max_steps:
             # pairwise distance between all actions
@@ -188,14 +197,13 @@ class VSSVisionEnv(gym.Env):
                 np.array(self.all_actions[1:]) - np.array(self.all_actions[:-1])
             )
             self.reward_info["reward_action_var"] = action_var
+            trunc = True
 
         self.reward_info["reward_mse"] += mse_reward
         self.reward_info["reward_sp"] += sp_reward
         self.reward_info["reward_total"] += reward
 
-        print(f"Reward: {reward}")
-
-        return reward, done
+        return reward, done, trunc
 
     def rgb_to_binary_img(self, output):
         filtered_output = output
@@ -265,6 +273,11 @@ class VSSVisionEnv(gym.Env):
 
         self.steps = 0  # Reset step counter
         self.all_actions = []  # Reset actions history
+
+        imgs, ans, _ = get_images()
+        r = np.random.randint(0, len(imgs))
+        self.image = imgs[r]
+        self.answer = ans[r]
 
         self.action = self.action_space.sample()
 

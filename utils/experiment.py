@@ -28,28 +28,22 @@ def strtobool(value: str) -> bool:
     return False
 
 
-def make_env(args, idx, run_name, vision=False):
-    def thunk():
-        if args.capture_video and idx == 0:
-            env = gym.make(args.gym_id, render_mode="rgb_array")
-            env = gym.wrappers.RecordVideo(
-                env,
-                f"videos/{run_name}",
-                episode_trigger=lambda x: x % args.video_freq == 0,
-            )
-        else:
-            env = gym.make(args.gym_id)
-        
-        if vision:
-            images, answers, _ = get_images()
-            j = np.random.randint(0, len(images))
-            env.set_image_and_answer(images[j], answers[j])
+def make_env(args, idx, run_name):
+    env = None
+    if args.capture_video and idx == 0:
+        env = gym.make(args.gym_id, render_mode="rgb_array")
+        env = gym.wrappers.RecordVideo(
+            env,
+            f"videos/{run_name}",
+             episode_trigger=lambda x: x % args.video_freq == 0,
+        )
+    else:
+        env = gym.make(args.gym_id)
                 
-        env = gym.wrappers.RecordEpisodeStatistics(env)
-        env.action_space.seed(args.seed)
-        return env
-
-    return thunk
+    # env = gym.wrappers.RecordEpisodeStatistics(env)
+    # env.set_image_and_answer(images[idx], answers[idx])
+    env.action_space.seed(args.seed)
+    return env
 
 
 def base_hyperparams():

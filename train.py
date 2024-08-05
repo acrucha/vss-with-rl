@@ -15,35 +15,34 @@ from methods.sac import SAC
 from utils.experiment import get_experiment, make_env
 from utils.experiment import parse_args
 from utils.experiment import setup_run
+from utils.experiment import get_images
 
 
 def train(args, exp_name, wandb_run, artifact):
-    environments = gym.vector.AsyncVectorEnv(
-        [make_env(args, i, exp_name, vision=True) for i in range(args.num_envs)]
-    )
+    # environments = gym.vector.AsyncVectorEnv(
+    #     [make_env(args, i, exp_name) for i in range(args.num_envs)]
+    # )
+
+    environment = make_env(args, 0, exp_name)
 
     agent = SAC(
-        args, environments.single_observation_space, environments.single_action_space
+        args, environment.observation_space, environment.action_space
     )
 
     start_time = time.time()
-    obs, _ = environments.reset()
+    obs, _ = environment.reset()
 
     log = {}
     for global_step in range(args.total_timesteps):
         if global_step < args.learning_starts:
-            actions = np.array(
-                [
-                    environments.single_action_space.sample()
-                    for _ in range(args.num_envs)
-                ]
-            )
+            action = environment.action_space.sample()
         else:
-            actions = agent.get_action(obs)
-        next_obs, rewards, terminations, truncations, infos = environments.step(actions)
+            action = agent.get_action(obs)
 
-        if "final_info" in infos:
-            for info in infos["final_info"]:
+        next_obs, reward, done, trunc, info = environment.step(action)
+
+        if "final_info" in info:
+            for info in info["final_info"]:
                 if info:
                     print(
                         f"global_step={global_step}, episodic_return={info['reward_total']}"
@@ -53,12 +52,10 @@ def train(args, exp_name, wandb_run, artifact):
                         log[f"ep_info/{key.replace('reward_', '')}"] = info[key]
                     break
 
-        # TRY NOT TO MODIFY: save data to reply buffer; handle `terminal_observation`
-        real_next_obs = next_obs.copy()
-        for idx, trunc in enumerate(truncations):
-            if trunc:
-                real_next_obs[idx] = infos["final_observation"][idx]
-        agent.replay_buffer.add(obs, actions, rewards, real_next_obs, terminations)
+        if done or trunc:
+            next_obs, _ = environment.reset()
+            print("Environments reset")
+
         obs = next_obs
 
         # ALGO LOGIC: training.
@@ -92,7 +89,7 @@ def train(args, exp_name, wandb_run, artifact):
 
     artifact.add_file(f"models/{exp_name}/actor.pt")
     wandb_run.log_artifact(artifact)
-    environments.close()
+    environment.close()
 
 
 def main(params):
