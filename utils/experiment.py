@@ -28,9 +28,9 @@ def strtobool(value: str) -> bool:
     return False
 
 
-def make_env(args, idx, run_name):
+def make_env(args, run_name):
     env = None
-    if args.capture_video and idx == 0:
+    if args.capture_video:
         env = gym.make(args.gym_id, render_mode="rgb_array")
         env = gym.wrappers.RecordVideo(
             env,

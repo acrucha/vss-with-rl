@@ -10,8 +10,7 @@ import cv2
 from typing import Dict
 
 import gymnasium as gym
-
-import numpy as np
+from gymnasium.utils.colorize import colorize
 
 from torchrl.data import UnboundedContinuousTensorSpec
 
@@ -20,8 +19,9 @@ import torchvision.transforms as transforms
 from utils.utils import filter_all_colors
 
 
+
 ACTION_SIZE = 8
-IMG_SIZE = (640, 480)
+IMG_SIZE = (320, 240)
 MAB_IMGS= 'images/mab/'
 COLORS_ORDER = np.array(range(1, ACTION_SIZE+1))
 CHANNELS = 3 # RGB
@@ -64,7 +64,7 @@ class VSSVisionEnv(gym.Env):
             Reach 99.5% of the answer image
     """
 
-    def __init__(self, w=640, h=480, repeat_action=1, max_steps=1200, render_mode="human"):
+    def __init__(self, w=IMG_SIZE[0], h=IMG_SIZE[1], repeat_action=1, max_steps=1200, render_mode="human"):
         super().__init__()
         self.metadata = {
             "render.modes": ["human", "rgb_array"],
@@ -75,7 +75,7 @@ class VSSVisionEnv(gym.Env):
         
         self.action_space = gym.spaces.Box(low=0, high=255, shape=(ACTION_SIZE, ), dtype=np.float32)
         # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(2*3*h*w, ), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(2,3,h,w), dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(1*3*h*w,), dtype=np.float32)
 
         self.actions: Dict = None
 
@@ -127,6 +127,9 @@ class VSSVisionEnv(gym.Env):
         if self.render_mode == "human":
             self.render()
 
+        # print("Step")
+        # print(f"Diff: {observation.shape != self.observation_space.shape} / Shapes: {observation.shape} - {self.observation_space.shape}") 
+
         return observation, reward, done, trunc, self.reward_info
 
     def get_vss_vision_output(self, answer, image):
@@ -154,20 +157,20 @@ class VSSVisionEnv(gym.Env):
 
         img_tensor = transform(image)
 
-        ## Answer
-        ans = cv2.cvtColor(self.answer, cv2.COLOR_BGR2RGB)
+        # ## Answer
+        # ans = cv2.cvtColor(self.answer, cv2.COLOR_BGR2RGB)
 
-        transform = transforms.Compose([
-            transforms.ToTensor()
-        ])
+        # transform = transforms.Compose([
+        #     transforms.ToTensor()
+        # ])
 
-        ans_tensor = transform(ans)
+        # ans_tensor = transform(ans)
 
-        obs_tensors = torch.stack([ans_tensor, img_tensor])
+        # obs_tensors = torch.stack([ans_tensor, img_tensor])
 
         # tensor to numpy
         # obs = obs_tensors.numpy().reshape(-1)
-        obs = obs_tensors.numpy()
+        obs = img_tensor.numpy().reshape(-1)
 
         return obs
 
@@ -188,8 +191,12 @@ class VSSVisionEnv(gym.Env):
         mse_reward, sp_reward = self.calculate_rewards()
         reward = mse_reward + sp_reward
 
-        if reward >= 1.999999:
+        if reward >= 1.99:
             done = True
+            cv2.imwrite('figures/vision_env/output_done.png', self.output)
+            cv2.imwrite('figures/vision_env/answer_done.png', self.answer)
+            reward = 10
+            print(colorize("CALIBRATED!", "green", bold=True, highlight=True))
 
         if done or self.steps >= self.max_steps:
             # pairwise distance between all actions
@@ -216,12 +223,15 @@ class VSSVisionEnv(gym.Env):
 
     def mse_reward(self, ans, out):
 
-        MAX_ERROR = 244800.0 * 2  # difference between a white image and a black image
-
         ans_white = ans != 0
         ans_black = ans == 0
         out_white = out != 0
         out_black = out == 0
+
+        white_img = np.ones(ans.shape)
+        black_img = np.zeros(ans.shape)
+
+        MAX_ERROR = np.linalg.norm(black_img - white_img) * 2 # difference between a white image and a black image
 
         mse = np.linalg.norm(out_white ^ ans_white) + np.linalg.norm(out_black ^ ans_black)
 

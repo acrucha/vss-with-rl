@@ -23,7 +23,7 @@ def train(args, exp_name, wandb_run, artifact):
     #     [make_env(args, i, exp_name) for i in range(args.num_envs)]
     # )
 
-    environment = make_env(args, 0, exp_name)
+    environment = make_env(args, exp_name)
 
     agent = SAC(
         args, environment.observation_space, environment.action_space
