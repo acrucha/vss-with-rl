@@ -29,6 +29,21 @@ register(
     max_episode_steps=75,
 )
 
+register(
+    id="Attacker-v0",
+    entry_point="envs.attacker:VSSAttackerEnv",
+    kwargs={"max_steps": 1200, "repeat_action": 1},
+    max_episode_steps=1200,
+)
+
+register(
+    id="Attacker-v1",
+    entry_point="envs.attacker:VSSAttackerEnv",
+    kwargs={"max_steps": 75, "repeat_action": 16},
+    max_episode_steps=75,
+)
+
+
 # register(
 #     id="Enhanced-v0",
 #     entry_point="envs.enhanced:SSLPathPlanningEnv",
