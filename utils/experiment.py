@@ -31,7 +31,7 @@ def make_env(args, idx, run_name):
             )
         else:
             env = gym.make(args.gym_id)
-        env = gym.wrappers.RecordEpisodeStatistics(env)
+        # env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(args.seed)
         return env
 
@@ -72,8 +72,8 @@ def base_hyperparams():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="Pid")
-    parser.add_argument("--setup", type=str, default="Pure")
+    parser.add_argument("--env", type=str, default="Attacker")
+    parser.add_argument("--setup", type=str, default="FSCAPS")
     parser.add_argument(
         "--cuda",
         type=lambda x: bool(strtobool(x)),
@@ -107,7 +107,7 @@ def parse_args():
     args = parser.parse_args()
     args.env = args.env.lower().title()
     args.setup = args.setup.lower().upper()
-    args.project = "vss-penalty" if "penalty" in args.env.lower() else "vss-pid-tuning" 
+    args.project = "vss-attacker"
     return args
 
 
