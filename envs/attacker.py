@@ -168,8 +168,6 @@ class VSSAttackerEnv(VSSBaseEnv):
         left_motor_speed, right_motor_speed = np.clip(
             (left_motor_speed, right_motor_speed), -MAX_V_WHEEL, MAX_V_WHEEL
         )
-        print("Left Motor Speed: ", left_motor_speed)
-        print("Right Motor Speed: ", right_motor_speed)
 
         # Deadzone
         if -self.v_wheel_deadzone < left_motor_speed < self.v_wheel_deadzone:
