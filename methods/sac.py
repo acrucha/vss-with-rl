@@ -27,7 +27,13 @@ class QNetwork(nn.Module):
         self.q1 = nn.Sequential(
             nn.Linear(num_inputs + num_actions, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim*2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim*2, hidden_dim*4),
+            nn.ReLU(),
+            nn.Linear(hidden_dim*4, hidden_dim*2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim*2, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
         )
@@ -36,7 +42,13 @@ class QNetwork(nn.Module):
         self.q2 = nn.Sequential(
             nn.Linear(num_inputs + num_actions, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim*2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim*2, hidden_dim*4),
+            nn.ReLU(),
+            nn.Linear(hidden_dim*4, hidden_dim*2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim*2, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, 1),
         )

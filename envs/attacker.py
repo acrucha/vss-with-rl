@@ -9,8 +9,6 @@ from rsoccer_gym.Entities import Robot, Frame, Ball
 from rsoccer_gym.vss.vss_gym_base import VSSBaseEnv
 from rsoccer_gym.Utils import KDTree
 
-from torchrl.data import CompositeSpec, DiscreteTensorSpec, UnboundedContinuousTensorSpec
-
 N_ROBOTS_BLUE = 3
 N_ROBOTS_YELLOW = 3
 MAX_DIST_TO_TARGET = 0.5
