@@ -21,7 +21,7 @@ OBSERVATIONS_SIZE = 46
 OUTPUT_SIZE = 2
 ROBOT_HALF_AXIS = 37.5
 WHEEL_RADIUS = 24.0
-MAX_V_WHEEL = 50.0
+MAX_V_WHEEL = 85
 MAX_V_LINEAR = 1.5
 MAX_W_ANGULAR = MAX_V_LINEAR
 
@@ -145,23 +145,31 @@ class VSSAttackerEnv(VSSBaseEnv):
 
         return observation, reward, done, False, self.reward_info
 
-    def _actions_to_v_wheels(self, linear_velocity, angular_velocity):
+    def _actions_to_v_wheels(self, left_motor_speed, right_motor_speed):
 
-        left_motor_speed, right_motor_speed = 0, 0
+        # left_motor_speed, right_motor_speed = 0, 0
 
-        linear_velocity *= MAX_V_LINEAR
-        angular_velocity *= MAX_W_ANGULAR
+        # linear_velocity *= MAX_V_LINEAR
+        # angular_velocity *= MAX_W_ANGULAR
 
-        linear_velocity = np.clip(linear_velocity, -MAX_V_LINEAR, MAX_V_LINEAR)
+        # linear_velocity = np.clip(linear_velocity, -MAX_V_LINEAR, MAX_V_LINEAR)
 
-        angular_velocity = np.clip(angular_velocity, -MAX_W_ANGULAR, MAX_W_ANGULAR)
+        # angular_velocity = np.clip(angular_velocity, -MAX_W_ANGULAR, MAX_W_ANGULAR)
+
+        # print("Linear Velocity: ", linear_velocity)
+        # print("Angular Velocity: ", angular_velocity)
         
-        left_motor_speed = linear_velocity - (angular_velocity * WHEEL_RADIUS)
-        right_motor_speed = linear_velocity + (angular_velocity * WHEEL_RADIUS)
+        # left_motor_speed = linear_velocity - (angular_velocity * WHEEL_RADIUS)
+        # right_motor_speed = linear_velocity + (angular_velocity * WHEEL_RADIUS)
+
+        left_motor_speed *= MAX_V_WHEEL
+        right_motor_speed *= MAX_V_WHEEL
 
         left_motor_speed, right_motor_speed = np.clip(
             (left_motor_speed, right_motor_speed), -MAX_V_WHEEL, MAX_V_WHEEL
         )
+        print("Left Motor Speed: ", left_motor_speed)
+        print("Right Motor Speed: ", right_motor_speed)
 
         # Deadzone
         if -self.v_wheel_deadzone < left_motor_speed < self.v_wheel_deadzone:
@@ -169,6 +177,9 @@ class VSSAttackerEnv(VSSBaseEnv):
 
         if -self.v_wheel_deadzone < right_motor_speed < self.v_wheel_deadzone:
             right_motor_speed = 0
+
+        left_motor_speed /= WHEEL_RADIUS
+        right_motor_speed /= WHEEL_RADIUS
 
         return left_motor_speed , right_motor_speed
 
