@@ -43,6 +43,16 @@ register(
     max_episode_steps=75,
 )
 
+register(
+    id="Attacker-v2",
+    entry_point="envs.vssef:VSSEF"
+)
+
+register(
+    id="Attacker-v3",
+    entry_point="envs.vssef:VSSEF"
+)
+
 
 # register(
 #     id="Enhanced-v0",
