@@ -7,7 +7,7 @@ with open("experiments.yml", "r") as f:
 experiment = base_hyperparams()
 
 # Using VSS Single Agent env
-env = gym.make('Attacker-v1', render_mode="human")
+env = gym.make('Attacker-v2', render_mode="human")
 
 env.reset()
 # Run for 1 episode and print reward at the end

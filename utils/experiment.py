@@ -73,7 +73,7 @@ def base_hyperparams():
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--env", type=str, default="Attacker")
-    parser.add_argument("--setup", type=str, default="FSCAPS")
+    parser.add_argument("--setup", type=str, default="FSCAPSEF")
     parser.add_argument(
         "--cuda",
         type=lambda x: bool(strtobool(x)),
