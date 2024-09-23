@@ -88,8 +88,6 @@ class VSSStratEnv(VSSEnv):
                     + w_energy * energy_penalty
                 )
 
-        self.cumulative_reward_info['reward_total'] += reward
-
         return reward, goal
 
     def __ball_grad(self):
@@ -166,7 +164,8 @@ class VSSEF(VSSStratEnv):
         efficiency_reward = self.__efficiency_reward(reward[1], -reward[2])
         self.cumulative_reward_info["reward_efficiency"] += efficiency_reward
         reward[2] = efficiency_reward
-        return observation, reward, terminated, truncated, self.cumulative_reward_info
+        self.cumulative_reward_info["reward_total"] += efficiency_reward
+        return observation, efficiency_reward, terminated, truncated, self.cumulative_reward_info
 
     def __efficiency_reward(self, ball_grad, energy):
         if np.isclose(ball_grad, 0, atol=1e-3):
