@@ -16,10 +16,10 @@ from envs.extra.RSimVSSPID import RSimVSSPID
 from collections import namedtuple
 from rsoccer_gym.Render import COLORS
 from envs.extra.Target import Target
+from envs.navigation import dist_to, abs_smallest_angle_diff
 
 import pygame
 
-from torchrl.data import UnboundedContinuousTensorSpec
 
 N_ROBOTS_BLUE = 1
 N_ROBOTS_YELLOW = 0
@@ -112,7 +112,9 @@ class VSSPIDTuningEnv(VSSBaseEnv):
 
         self.last_speed_reward = 0
 
-        self.target = Robot(x=0, y=0, theta=0)
+        self.target_point: Point2D = Point2D(0, 0)
+        self.target_angle: float = 0.0
+        self.target_velocity: Point2D = Point2D(0, 0)
 
         self.ou_actions = []
         for i in range(self.n_robots_blue + self.n_robots_yellow):
@@ -120,9 +122,14 @@ class VSSPIDTuningEnv(VSSBaseEnv):
                 OrnsteinUhlenbeckAction(self.action_space, dt=self.time_step)
             )
 
-        self.action_spec = UnboundedContinuousTensorSpec(1)
         self.cur_action = []
         self.all_actions = []
+        self.actual_action = None
+        self.last_action = None
+        self.last_dist_reward = 0
+        self.last_angle_reward = 0
+        self.last_speed_reward = 0
+        self.action_color = COLORS["PINK"]
 
         self.robot_path = []
         self.repeat_action = repeat_action
@@ -143,6 +150,12 @@ class VSSPIDTuningEnv(VSSBaseEnv):
 
         self.max_steps = max_steps
 
+        # Render
+        self.window_surface = None
+        self.window_size = self.field_renderer.window_size
+        self.clock = None
+
+
         print('Environment initialized')
 
     def reset(self, *, seed=None, options=None):
@@ -152,9 +165,7 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         self.reward_info = None
         self.previous_target_potential = None
         self.steps = 0
-        self.target = Robot(x=random.uniform(-FIELD_LENGTH/2 + ROBOT_WIDTH, FIELD_LENGTH/2 - ROBOT_WIDTH),
-                            y=random.uniform(-FIELD_WIDTH/2 + ROBOT_WIDTH, FIELD_WIDTH/2 - ROBOT_WIDTH),
-                            theta=random.uniform(0, 2*np.pi))
+
         for ou in self.ou_actions:
             ou.reset()
 
@@ -168,13 +179,27 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             commands: List[RobotWithPID] = self._get_commands(action)
             
             # Send command to simulator
-            self.rsim.set_target(self.target)
+            self.rsim.set_target(Robot(
+                x=self.target_point.x, 
+                y=self.target_point.y, 
+                theta=self.target_angle, 
+                v_x=self.target_velocity.x, 
+                v_y=self.target_velocity.y
+            ))
             self.rsim.send_commands(commands)
             self.sent_commands = commands
 
             # Get Frame from simulator
             self.last_frame = self.frame
             self.frame = self.rsim.get_frame()
+
+            self.actual_action = [
+                self.frame.robots_blue[0].x,
+                self.frame.robots_blue[0].y,
+                self.frame.robots_blue[0].theta,
+                self.frame.robots_blue[0].v_x,
+                self.frame.robots_blue[0].v_y,
+            ]
 
             # Calculate environment observation, reward and done condition
             observation = self._frame_to_observations()
@@ -196,24 +221,17 @@ class VSSPIDTuningEnv(VSSBaseEnv):
 
         observation = []
 
-        observation.append(self.norm_pos(self.target.x))
-        observation.append(self.norm_pos(self.target.y))
-        observation.append(
-            np.sin(np.deg2rad(self.target.theta))
-        )
-        observation.append(
-            np.cos(np.deg2rad(self.target.theta))
-        )
-            
-
+        observation.append(self.norm_pos(self.target_point.x))
+        observation.append(self.norm_pos(self.target_point.y))
+        observation.append(np.sin(self.target_angle))
+        observation.append(np.cos(self.target_angle))
+        observation.append(self.norm_v(self.target_velocity.x))
+        observation.append(self.norm_v(self.target_velocity.y))
+    
         observation.append(self.norm_pos(self.frame.robots_blue[0].x))
         observation.append(self.norm_pos(self.frame.robots_blue[0].y))
-        observation.append(
-            np.sin(np.deg2rad(self.frame.robots_blue[0].theta))
-        )
-        observation.append(
-            np.cos(np.deg2rad(self.frame.robots_blue[0].theta))
-        )
+        observation.append(np.sin(np.deg2rad(self.frame.robots_blue[0].theta)))
+        observation.append(np.cos(np.deg2rad(self.frame.robots_blue[0].theta)))
         observation.append(self.norm_v(self.frame.robots_blue[0].v_x))
         observation.append(self.norm_v(self.frame.robots_blue[0].v_y))
         observation.append(self.norm_w(self.frame.robots_blue[0].v_theta))
@@ -234,70 +252,33 @@ class VSSPIDTuningEnv(VSSBaseEnv):
 
         return commands
 
-    # def _calculate_reward_and_done(self):
-    #     reward = 0
-    #     has_reached_target = False
-    #     w_move = 0.8
-    #     w_angle_diff = 0.1
-    #     w_energy = 0.1
-    #     robot = self.frame.robots_blue[0]
-    #     if self.reward_info is None:
-    #         self.reward_info = self.init_reward_shaping_dict()
-
-    #     dist_to_target = math.dist([self.target.x, self.target.y], [robot.x, robot.y])
-    #     dist_to_target *= 100
-                
-    #     # print(f"Distance to target: {dist_to_target:.2f}cm")
-
-    #     angle_diff = self.__angle_diff()
-    #     move_reward = self.__move_reward()
-    #     energy_penalty = self.__energy_penalty()
-
-    #     if dist_to_target < MAX_DIST_TO_TARGET and abs(angle_diff) < 5:
-            
-    #         print(f"Reached target in {self.steps} steps")
-    #         reward = np.clip(1/self.steps, -5, 5) + 1000
-
-    #         self.reward_info['has_reached_target'] += reward
-            
-    #         has_reached_target = True
-    #     else:
-    #         if self.last_frame is not None:                
-    #             if dist_to_target > MAX_DIST_ANGLE_REWARD:
-    #                 w_move = 0.9
-    #                 w_energy = 0.1
-    #                 w_angle_diff = 0
-
-    #             reward = w_move * move_reward + \
-    #                 w_energy * energy_penalty + \
-    #                 w_angle_diff * angle_diff
-
-    #             self.reward_info['move'] += w_move * move_reward
-    #             self.reward_info['energy'] += w_energy \
-    #                 * energy_penalty
-    #             self.reward_info['angle_diff'] += w_angle_diff \
-    #                 * angle_diff
-
-    #     return reward, has_reached_target
-
     def _calculate_reward_and_done(self):
         done = False
         reward = 0
         dist_reward, distance = self._dist_reward()
         angle_reward, angle_diff = self._angle_reward()
-        # robot_vel_error = np.linalg.norm(
-        #     np.array(
-        #         [
-        #             self.frame.robots_blue[0].v_x - self.target_velocity.x,
-        #             self.frame.robots_blue[0].v_y - self.target_velocity.y,
-        #         ]
-        #     )
-        # )
-        # print(f"dist_reward: {distance < DIST_TOLERANCE} | robot_dist: {robot_dist < DIST_TOLERANCE} | angle: {angle_reward < ANGLE_TOLERANCE} | vel: {robot_vel_error < self.SPEED_TOLERANCE}")
+        robot_dist = np.linalg.norm(
+            np.array(
+                [
+                    self.frame.robots_blue[0].x - self.target_point.x,
+                    self.frame.robots_blue[0].y - self.target_point.y,
+                ]
+            )
+        )
+        robot_vel_error = np.linalg.norm(
+            np.array(
+                [
+                    self.frame.robots_blue[0].v_x - self.target_velocity.x,
+                    self.frame.robots_blue[0].v_y - self.target_velocity.y,
+                ]
+            )
+        )
+
         if (
             distance < DIST_TOLERANCE
             and angle_diff < ANGLE_TOLERANCE
-            # and robot_vel_error < self.SPEED_TOLERANCE
+            and robot_dist < DIST_TOLERANCE
+            and robot_vel_error < self.SPEED_TOLERANCE
         ):
             done = True
             reward = 1000
@@ -306,7 +287,7 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         else:
             reward = dist_reward + angle_reward
 
-        if done or self.steps >= self.max_steps:
+        if done or self.steps >= 1200:
             # pairwise distance between all actions
             action_var = np.linalg.norm(
                 np.array(self.all_actions[1:]) - np.array(self.all_actions[:-1])
@@ -321,43 +302,78 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         return reward, done
 
     def _get_initial_positions_frame(self):
-        '''Returns the position of each robot and ball for the initial frame'''
         field_half_length = self.field.length / 2
         field_half_width = self.field.width / 2
 
-        def x(): return random.uniform(-field_half_length + 0.1,
-                                       field_half_length - 0.1)
 
-        def y(): return random.uniform(-field_half_width + 0.1,
-                                       field_half_width - 0.1)
+        def get_random_x():
+            return random.uniform(-field_half_length + 0.1, field_half_length - 0.1)
 
-        def theta(): return random.uniform(0, 360)
+        def get_random_y():
+            return random.uniform(-field_half_width + 0.1, field_half_width - 0.1)
+
+        def get_random_theta():
+            return random.uniform(0, 360)
+
+        def get_random_speed():
+            return random.uniform(0, self.max_v)
 
         pos_frame: Frame = Frame()
 
-        pos_frame.ball = Ball(x=x(), y=y())
+        pos_frame.ball = Ball(x=-4, y=-2)
 
-        min_dist = 0.1
+        self.target_point = Point2D(x=get_random_x(), y=get_random_y())
+        self.target_angle = np.deg2rad(get_random_theta())
+        random_speed: float = 0
+        random_velocity_direction: float = np.deg2rad(get_random_theta())
+
+        self.target_velocity = Point2D(
+            x=random_speed * np.cos(random_velocity_direction),
+            y=random_speed * np.sin(random_velocity_direction),
+        )
+
+        # Adjust speed tolerance according to target velocity
+        target_speed_norm = np.sqrt(
+            self.target_velocity.x**2 + self.target_velocity.y**2
+        )
+        self.SPEED_TOLERANCE = (
+            SPEED_MIN_TOLERANCE
+            + (SPEED_MAX_TOLERANCE - SPEED_MIN_TOLERANCE)
+            * target_speed_norm
+            / self.max_v
+        )
+
+        min_gen_dist = 0.2
 
         places = KDTree()
+        places.insert((self.target_point.x, self.target_point.y))
         places.insert((pos_frame.ball.x, pos_frame.ball.y))
-        
+
         for i in range(self.n_robots_blue):
-            pos = (x(), y())
-            while places.get_nearest(pos)[1] < min_dist:
-                pos = (x(), y())
+            pos = (get_random_x(), get_random_y())
+
+            while places.get_nearest(pos)[1] < min_gen_dist:
+                pos = (get_random_x(), get_random_y())
 
             places.insert(pos)
-            pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=theta())
+            pos_frame.robots_blue[i] = Robot(
+                id=i, yellow=False, x=pos[0], y=pos[1], theta=get_random_theta()
+            )
 
         for i in range(self.n_robots_yellow):
-            pos = (x(), y())
-            while places.get_nearest(pos)[1] < min_dist:
-                pos = (x(), y())
+            pos = (get_random_x(), get_random_y())
+            while places.get_nearest(pos)[1] < min_gen_dist:
+                pos = (get_random_x(), get_random_y())
 
             places.insert(pos)
-            pos_frame.robots_yellow[i] = Robot(x=pos[0], y=pos[1], theta=theta())
-
+            pos_frame.robots_yellow[i] = Robot(
+                id=i, yellow=True, x=pos[0], y=pos[1], theta=get_random_theta()
+            )
+        self.last_action = None
+        self.last_dist_reward = 0
+        self.last_angle_reward = 0
+        self.last_speed_reward = 0
+        self.all_actions = []
         self.reward_info = {
             "reward_dist": 0,
             "reward_angle": 0,
@@ -367,7 +383,6 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             "reward_steps": 0,
         }
         self.robot_path = [(pos_frame.robots_blue[0].x, pos_frame.robots_blue[0].y)] * 2
-
         return pos_frame
 
     def _actions_to_PID(self, actions):
@@ -376,75 +391,48 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         kD = np.clip(abs(actions[2]), 0, self.max_kD)
 
         return kP , kI , kD
-
-    def __move_reward(self):
-        '''Calculate Move to target reward
-
-        Cosine between the robot vel vector and the vector robot -> target.
-        This indicates rather the robot is moving towards the target or not.
-        '''
-
-        target = np.array([self.target.x, self.target.y])
-        robot = np.array([self.frame.robots_blue[0].x,
-                          self.frame.robots_blue[0].y])
-        robot_vel = np.array([self.frame.robots_blue[0].v_x,
-                              self.frame.robots_blue[0].v_y])
-        robot_target = target - robot
-        robot_target = robot_target/np.linalg.norm(robot_target)
-
-        move_reward = np.dot(robot_target, robot_vel)
-
-        move_reward = np.clip(move_reward / 0.4, -REWARD_NORM_BOUND, REWARD_NORM_BOUND)
-        return move_reward
-
-    def __energy_penalty(self):
-        '''Calculates the energy penalty'''
-
-        en_penalty_1 = abs(self.sent_commands[0].v_wheel0)
-        en_penalty_2 = abs(self.sent_commands[0].v_wheel1)
-        energy_penalty = - (en_penalty_1 + en_penalty_2)
-        return energy_penalty
-    
-    def __angle_diff(self):
-        '''Calculates the angle difference between the robot and the target'''
-        angle_diff = RSimVSSPID.smallest_angle_diff(self.frame.robots_blue[0].theta, self.target.theta) 
-        return np.clip(angle_diff, -REWARD_NORM_BOUND, REWARD_NORM_BOUND)
     
     def _dist_reward(self):
-        robot = self.frame.robots_blue[0]
-        robot = Point2D(x=robot.x, y=robot.y)
-        actual_dist = np.linalg.norm([robot.x - self.target.x, robot.y - self.target.y]) * TO_CENTIMETERS
+        action_target_x = self.actual_action[0] * self.field.length / 2
+        action_target_y = self.actual_action[1] * self.field.width / 2
+        action = Point2D(x=action_target_x, y=action_target_y)
+        target = self.target_point
+        actual_dist = dist_to(action, target)
         reward = -actual_dist if actual_dist > DIST_TOLERANCE else 10
         return reward, actual_dist
 
     def _angle_reward(self):
-        robot = self.frame.robots_blue[0]
-        robot_angle = np.deg2rad(robot.theta)
-        target =  np.deg2rad(self.target.theta)
-        angle_diff = RSimVSSPID.smallest_angle_diff(robot_angle, target)
+        action_angle = self.actual_action[2]
+        target = self.target_angle
+        angle_diff = abs_smallest_angle_diff(action_angle, target)
         angle_reward = -angle_diff / np.pi if angle_diff > ANGLE_TOLERANCE else 1
         return angle_reward, angle_diff
 
-    # def _speed_reward(self):
-    #     action_speed_x = self.cur_action[0] * MAX_VELOCITY
-    #     action_speed_y = self.cur_action[1] * MAX_VELOCITY
-    #     action_speed = Point2D(x=action_speed_x, y=action_speed_y)
-    #     target = self.target_velocity
-    #     vel_error = RSimVSSPID.smallest_angle_diff(action_speed, target)
-    #     reward = -vel_error if vel_error > self.SPEED_TOLERANCE else 0.1
-    #     speed_reward = reward - self.last_speed_reward
-    #     self.last_speed_reward = reward
-    #     return speed_reward
+    def _speed_reward(self):
+        action_speed_x = self.actual_action[3] * MAX_VELOCITY
+        action_speed_y = self.actual_action[4] * MAX_VELOCITY
+        action_speed = Point2D(x=action_speed_x, y=action_speed_y)
+        target = self.target_velocity
+        vel_error = dist_to(action_speed, target)
+        reward = -vel_error if vel_error > self.SPEED_TOLERANCE else 0.1
+        speed_reward = reward - self.last_speed_reward
+        self.last_speed_reward = reward
+        return speed_reward
 
-    def draw_target(self, transformer, point, angle):
+    def draw_target(self, screen, transformer, point, angle, color):
         x, y = transformer(point.x, point.y)
-        rbt = Target(
-            x,
-            y,
-            angle,
-            self.field_renderer.scale
+        size = 0.04 * self.field_renderer.scale
+        pygame.draw.circle(screen, color, (x, y), size, 2)
+        pygame.draw.line(
+            screen,
+            COLORS["BLACK"],
+            (x, y),
+            (
+                x + size * np.cos(angle),
+                y + size * np.sin(angle),
+            ),
+            2,
         )
-        rbt.draw(self.window_surface)
 
     def _render(self):
         def pos_transform(pos_x, pos_y):
@@ -454,14 +442,12 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             )
 
         super()._render()
-        self.draw_target(
-            pos_transform,
-            self.target,
-            self.target.theta
-        )
 
         # kP, kI, kD = self._actions_to_PID(self.cur_action)
         # v, w = RSimVSSPID.get_velocities(self.rsim, kP, kI, kD)
+
+        # Draw Target
+        self.draw_target(self.window_surface, pos_transform, self.target_point, self.target_angle, COLORS["PINK"])
 
         # Draw Path
         if len(self.robot_path) > 1:
