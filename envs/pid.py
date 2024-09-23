@@ -159,8 +159,6 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         print('Environment initialized')
 
     def reset(self, *, seed=None, options=None):
-        super().reset(seed=seed, options=options)
-        
         self.actions = None
         self.reward_info = None
         self.previous_target_potential = None
@@ -169,7 +167,8 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         for ou in self.ou_actions:
             ou.reset()
 
-        return super().reset()
+        return super().reset(seed=seed, options=options)
+
 
     def step(self, action):
         self.cur_action = action
@@ -225,8 +224,8 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         observation.append(self.norm_pos(self.target_point.y))
         observation.append(np.sin(self.target_angle))
         observation.append(np.cos(self.target_angle))
-        observation.append(self.norm_v(self.target_velocity.x))
-        observation.append(self.norm_v(self.target_velocity.y))
+        # observation.append(self.norm_v(self.target_velocity.x))
+        # observation.append(self.norm_v(self.target_velocity.y))
     
         observation.append(self.norm_pos(self.frame.robots_blue[0].x))
         observation.append(self.norm_pos(self.frame.robots_blue[0].y))
@@ -265,20 +264,20 @@ class VSSPIDTuningEnv(VSSBaseEnv):
                 ]
             )
         )
-        robot_vel_error = np.linalg.norm(
-            np.array(
-                [
-                    self.frame.robots_blue[0].v_x - self.target_velocity.x,
-                    self.frame.robots_blue[0].v_y - self.target_velocity.y,
-                ]
-            )
-        )
+        # robot_vel_error = np.linalg.norm(
+        #     np.array(
+        #         [
+        #             self.frame.robots_blue[0].v_x - self.target_velocity.x,
+        #             self.frame.robots_blue[0].v_y - self.target_velocity.y,
+        #         ]
+        #     )
+        # )
 
         if (
             distance < DIST_TOLERANCE
             and angle_diff < ANGLE_TOLERANCE
             and robot_dist < DIST_TOLERANCE
-            and robot_vel_error < self.SPEED_TOLERANCE
+            # and robot_vel_error < self.SPEED_TOLERANCE
         ):
             done = True
             reward = 1000
