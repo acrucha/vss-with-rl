@@ -121,7 +121,7 @@ def get_experiment(arguments):
     return experiment
 
 
-def setup_run(exp_name, params, project="vss-pid-tuning"):
+def setup_run(exp_name, params, project="vss-attacker"):
     project = project
     if params.seed == 0:
         params.seed = int(time.time())

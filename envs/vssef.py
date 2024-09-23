@@ -1,8 +1,9 @@
 import numpy as np
-
+import gymnasium as gym
 from gymnasium.spaces import Box
 from rsoccer_gym.vss.env_vss.vss_gym import VSSEnv
 
+OBSERVATIONS_SIZE = 46
 
 class VSSStratEnv(VSSEnv):
 
@@ -18,7 +19,11 @@ class VSSStratEnv(VSSEnv):
             "reward_Goal_blue": 0,
             "reward_Goal_yellow": 0,
             "Original_reward": 0,
+            "reward_total": 0,
         }
+        self.observation_space = gym.spaces.Box(
+            low=-self.NORM_BOUNDS, high=self.NORM_BOUNDS, shape=(OBSERVATIONS_SIZE,), dtype=np.float32
+        )
 
     def reset(self, *, seed=None, options=None):
         self.cumulative_reward_info = {
@@ -29,6 +34,7 @@ class VSSStratEnv(VSSEnv):
             "reward_Goal_blue": 0,
             "reward_Goal_yellow": 0,
             "Original_reward": 0,
+            "reward_total": 0,
         }
         return super().reset(seed=seed, options=options)
 
@@ -81,6 +87,8 @@ class VSSStratEnv(VSSEnv):
                     + w_ball_grad * grad_ball_potential
                     + w_energy * energy_penalty
                 )
+
+        self.cumulative_reward_info['reward_total'] += reward
 
         return reward, goal
 
@@ -170,3 +178,32 @@ class VSSEF(VSSStratEnv):
             reward_efficiency = reward_efficiency / 2
             reward_efficiency = np.clip(reward_efficiency, -1, 1)
         return reward_efficiency
+
+
+    def _frame_to_observations(self):
+        observation = []
+
+        observation.append(self.norm_pos(self.frame.ball.x))
+        observation.append(self.norm_pos(self.frame.ball.y))
+        observation.append(self.norm_v(self.frame.ball.v_x))
+        observation.append(self.norm_v(self.frame.ball.v_y))
+
+        for i in range(self.n_robots_blue):
+            observation.append(self.norm_pos(self.frame.robots_blue[i].x))
+            observation.append(self.norm_pos(self.frame.robots_blue[i].y))
+            observation.append(np.sin(np.deg2rad(self.frame.robots_blue[i].theta)))
+            observation.append(np.cos(np.deg2rad(self.frame.robots_blue[i].theta)))
+            observation.append(self.norm_v(self.frame.robots_blue[i].v_x))
+            observation.append(self.norm_v(self.frame.robots_blue[i].v_y))
+            observation.append(self.norm_w(self.frame.robots_blue[i].v_theta))
+
+        for i in range(self.n_robots_yellow):
+            observation.append(self.norm_pos(self.frame.robots_yellow[i].x))
+            observation.append(self.norm_pos(self.frame.robots_yellow[i].y))
+            observation.append(np.sin(np.deg2rad(self.frame.robots_yellow[i].theta)))
+            observation.append(np.cos(np.deg2rad(self.frame.robots_yellow[i].theta)))
+            observation.append(self.norm_v(self.frame.robots_yellow[i].v_x))
+            observation.append(self.norm_v(self.frame.robots_yellow[i].v_y))
+            observation.append(self.norm_w(self.frame.robots_yellow[i].v_theta))
+
+        return np.array(observation, dtype=np.float32)
