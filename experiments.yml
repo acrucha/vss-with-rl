@@ -50,8 +50,8 @@ Penalty:
     caps_epsilon: 0.05
   FSCAPS:
     gym_id: Penalty-v1
-    num_envs: 6
-    total_timesteps: 150000
+    num_envs: 16
+    total_timesteps: 500000
     autotune: True
     lambda_temporal: 1
     lambda_spacial: 5
@@ -99,8 +99,8 @@ Attacker:
     gamma: 0.95
   FSCAPSEF:
     gym_id: Attacker-v2
-    num_envs: 4
-    total_timesteps: 100000
+    num_envs: 16
+    total_timesteps: 500000
     autotune: True
     lambda_temporal: 1
     lambda_spacial: 5
@@ -112,36 +112,3 @@ Attacker:
     q_lr: 0.0001
     batch_size: 256
     gamma: 0.95
-
-# VSSEF:
-#   PURE:
-#     gym_id: VSSEF-v0
-#     num_envs: 16
-#     total_timesteps: 150000
-#   FRAMESKIP:
-#     gym_id: VSSEF-v1
-#     num_envs: 16
-#     total_timesteps: 150000
-#   CAPS:
-#     gym_id: VSSEF-v0
-#     num_envs: 16
-#     total_timesteps: 150000
-#     autotune: True
-#     lambda_temporal: 1
-#     lambda_spacial: 5
-#     caps_epsilon: 0.05
-#   FSCAPS:
-#     gym_id: VSSEF-v1
-#     num_envs: 6
-#     total_timesteps: 500000
-#     autotune: True
-#     lambda_temporal: 1
-#     lambda_spacial: 5
-#     caps_epsilon: 0.05
-#     learning_starts: 5000
-#     tau: 0.999
-#     policy_frequency: 1
-#     policy_lr: 0.0001
-#     q_lr: 0.0001
-#     batch_size: 256
-#     gamma: 0.95
