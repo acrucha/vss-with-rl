@@ -3,14 +3,40 @@ import os
 import random
 import time
 
-from yaml import safe_load
-
 import gymnasium as gym
 import numpy as np
 import torch
 import wandb
 
 import envs
+
+from typing import Iterator, Tuple, TypeVar
+from yaml import safe_load
+
+ObsType = TypeVar("ObsType")
+ActType = TypeVar("ActType")
+
+class GoncaRewardWrapper(gym.Wrapper):
+    def __init__(self, env: gym.Env):
+        """Makes the env return a scalar reward, which is the dot-product between the reward vector and the weight vector.
+
+        Args:
+            env: env to wrap
+            weight: weight vector to use in the dot product
+        """
+        gym.Wrapper.__init__(self, env)
+
+    def step(self, action: ActType) -> Tuple[ObsType, float, bool, bool, dict]:
+        """Treat rewards correctly
+        Args:
+            action: action to perform
+        Returns: obs, reward, terminated, truncated, info
+        """
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        if isinstance(reward, np.ndarray):
+            reward = reward.sum()
+        return observation, reward, terminated, truncated, info
+
 
 
 def strtobool(value: str) -> bool:
@@ -31,7 +57,7 @@ def make_env(args, idx, run_name):
             )
         else:
             env = gym.make(args.gym_id)
-        # env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = GoncaRewardWrapper(env)
         env.action_space.seed(args.seed)
         return env
 
