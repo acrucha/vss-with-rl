@@ -48,6 +48,13 @@ register(
     entry_point="envs.vssef:VSSEF"
 )
 
+register(
+    id="GoTo-v0",
+    entry_point="envs.goto:VSSGoToEnv",
+    kwargs={"max_steps": 120},
+    max_episode_steps=120,
+)
+
 
 # register(
 #     id="Enhanced-v0",

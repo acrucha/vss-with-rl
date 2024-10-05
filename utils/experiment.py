@@ -57,7 +57,8 @@ def make_env(args, idx, run_name):
             )
         else:
             env = gym.make(args.gym_id)
-        env = GoncaRewardWrapper(env)
+        if args.setup == "FSCAPSEF":
+            env = GoncaRewardWrapper(env) 
         env.action_space.seed(args.seed)
         return env
 
