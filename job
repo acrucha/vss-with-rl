@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH --job-name=vss-goto-fscaps
+#SBATCH --ntasks=1
+#SBATCH --mem 16G
+#SBATCH -c 16
+#SBATCH -o vss-goto.log
+#SBATCH --output=vss-goto_output.txt
+#SBATCH --error=vss-goto_error.txt
+
+module load Python/3.10
+source $HOME/vss-rl/bin/activate
+
+python3 train.py --env Goto --setup FSCAPS --capture-video --track
