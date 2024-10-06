@@ -293,7 +293,7 @@ class VSSGoToEnv(VSSBaseEnv):
         reward = 0
         dist_reward, distance = self._dist_reward()
         angle_reward, angle_diff = self._angle_reward()
-        steps_reward = -2 * (self.steps / self.max_steps)
+        # steps_reward = -2 * (self.steps / self.max_steps)
         obstacle_reward = self._obstacle_reward()
 
         robot_dist = np.linalg.norm(
@@ -325,7 +325,7 @@ class VSSGoToEnv(VSSBaseEnv):
             self.reward_info["reward_objective"] += reward
             print(colorize("TARGET REACHED!", "green", bold=True, highlight=True))
         else:
-            reward = dist_reward + angle_reward + steps_reward + obstacle_reward
+            reward = dist_reward + angle_reward
 
         if done or self.steps >= self.max_steps:
             # pairwise distance between all actions
@@ -337,9 +337,10 @@ class VSSGoToEnv(VSSBaseEnv):
         self.reward_info["reward_dist"] += dist_reward
         self.reward_info["reward_angle"] += angle_reward
         self.reward_info["reward_total"] += reward
-        self.reward_info["reward_steps"] += steps_reward
+        # self.reward_info["reward_steps"] += steps_reward
         self.reward_info["reward_obstacle"] += obstacle_reward
 
+        reward += obstacle_reward
         if self._check_collision():
             done = True
             reward = -1000
