@@ -313,10 +313,9 @@ class VSSGoToEnv(VSSBaseEnv):
         #     )
         # )
 
-
         if (
-            distance < DIST_TOLERANCE
-            and angle_diff < ANGLE_TOLERANCE
+            # distance < DIST_TOLERANCE
+            angle_diff < ANGLE_TOLERANCE
             and robot_dist < DIST_TOLERANCE
             # and robot_vel_error < self.SPEED_TOLERANCE
         ):
@@ -343,7 +342,7 @@ class VSSGoToEnv(VSSBaseEnv):
         reward += obstacle_reward
         if self._check_collision():
             done = True
-            reward = -1000
+            reward -= 400
 
         return reward, done
 
@@ -435,15 +434,18 @@ class VSSGoToEnv(VSSBaseEnv):
         action = Point2D(x=action_target_x, y=action_target_y)
         target = self.target_point
         actual_dist = dist_to(action, target)
-        reward = -actual_dist if actual_dist > DIST_TOLERANCE else 10
+        reward = -actual_dist * 10 if actual_dist > DIST_TOLERANCE else actual_dist * 1000
         return reward, actual_dist
 
     def _angle_reward(self):
         action_angle = self.frame.robots_blue[0].theta
+        rear_angle = action_angle + math.pi
         target = self.target_angle
         angle_diff = abs_smallest_angle_diff(action_angle, target)
-        angle_reward = -angle_diff / np.pi if angle_diff > ANGLE_TOLERANCE else 1
-        return angle_reward, angle_diff
+        rear_angle_diff = abs_smallest_angle_diff(rear_angle, target)
+        min_diff = min(angle_diff, rear_angle_diff)
+        angle_reward = -angle_diff / np.pi if min_diff > ANGLE_TOLERANCE else 1
+        return angle_reward, min_diff
 
     def _speed_reward(self):
         action_speed_x = self.actual_action[3] * MAX_VELOCITY

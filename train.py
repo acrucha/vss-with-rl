@@ -43,9 +43,8 @@ def train(args, exp_name, wandb_run, artifact):
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if info:
-                    print(
-                        f"global_step={global_step}, episodic_return={info['reward_total']}"
-                    )
+                    if global_step % 100 == 0:
+                        print(colorize(f"Step: {global_step} | Episodic Reward: {info['reward_total']}", "blue", bold=True, highlight=True))
                     keys_to_log = [x for x in info.keys() if x.startswith("reward_")]
                     for key in keys_to_log:
                         log[f"ep_info/{key.replace('reward_', '')}"] = info[key]
