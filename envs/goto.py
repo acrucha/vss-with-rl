@@ -130,8 +130,8 @@ class VSSGoToEnv(VSSBaseEnv):
         self.last_angle_reward = 0
         self.last_speed_reward = 0
         self.action_color = COLORS["PINK"]
-        self.half_field_length = self.field.length / 2
-        self.half_field_width = self.field.width / 2
+        self.max_x = self.field.length / 2
+        self.max_y = self.field.width / 2
 
         self.integral = []
         self.accumulated_error = 0.0
@@ -266,7 +266,7 @@ class VSSGoToEnv(VSSBaseEnv):
         self.actions = {}
 
         self.actions[0] = actions
-        target = Point2D(x=actions[0]*self.half_field_width, y=actions[1]*self.half_field_length)
+        target = Point2D(x=actions[0]*self.max_x, y=actions[1]*self.max_y)
         v_wheel0, v_wheel1 = self.navigation(target)
 
         commands.append(Robot(yellow=False, id=0, v_wheel0=v_wheel0, v_wheel1=v_wheel1))
@@ -348,11 +348,12 @@ class VSSGoToEnv(VSSBaseEnv):
         return reward, done
 
     def _get_initial_positions_frame(self):
+        rbt_axis = self.field.rbt_radius * 2
         def get_random_x():
-            return random.uniform(-self.half_field_width + 0.1, self.half_field_width - 0.1)
+            return random.uniform(-self.max_x + rbt_axis, self.max_x - rbt_axis)
 
         def get_random_y():
-            return random.uniform(-self.half_field_length + 0.1, self.half_field_length - 0.1)
+            return random.uniform(-self.max_y + rbt_axis, self.max_y - rbt_axis)
 
         def get_random_theta():
             return random.uniform(0, 360)
@@ -429,8 +430,8 @@ class VSSGoToEnv(VSSBaseEnv):
         return pos_frame
     
     def _dist_reward(self):
-        action_target_x = self.actual_action[0] * self.half_field_width
-        action_target_y = self.actual_action[1] * self.half_field_length
+        action_target_x = self.actual_action[0] * self.max_x
+        action_target_y = self.actual_action[1] * self.max_y
         action = Point2D(x=action_target_x, y=action_target_y)
         target = self.target_point
         actual_dist = dist_to(action, target)
@@ -462,10 +463,10 @@ class VSSGoToEnv(VSSBaseEnv):
         robot_y = self.frame.robots_blue[0].y
 
         # wall collisions
-        if (robot_y <= -self.half_field_length + offset) or (
-            robot_y >= self.half_field_length - offset
-        ) or (robot_x <= -self.half_field_width + offset) or (
-            robot_x >= self.half_field_width - offset):
+        if (robot_x <= -self.max_x + offset) or (
+            robot_x >= self.max_x - offset
+        ) or (robot_y <= -self.max_y + offset) or (
+            robot_y >= self.max_y - offset):
             print(colorize("WALL COLLISION!", "red", bold=True, highlight=True))
             return True
 
@@ -484,7 +485,7 @@ class VSSGoToEnv(VSSBaseEnv):
                 )
             )
             dist = np.linalg.norm(agent_pos - obstacle_pos)
-            if dist < offset * 2:
+            if dist <= offset * 2:
                 print(colorize("ROBOT COLLISION!", "blue", bold=True, highlight=True))
                 return True
         return False
@@ -539,7 +540,7 @@ class VSSGoToEnv(VSSBaseEnv):
         self.draw_target(self.window_surface, pos_transform, self.target_point, self.target_angle, COLORS["PINK"])
 
         # Draw Current Target
-        self.draw_target(self.window_surface, pos_transform, Point2D(self.actual_action[0]*self.half_field_width, self.actual_action[1]*self.half_field_length), 0, COLORS["GREEN"])
+        self.draw_target(self.window_surface, pos_transform, Point2D(self.actual_action[0]*self.max_x, self.actual_action[1]*self.max_y), 0, COLORS["GREEN"])
         
         # Draw Path
         if len(self.robot_path) > 1:
