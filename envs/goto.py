@@ -333,7 +333,6 @@ class VSSGoToEnv(VSSBaseEnv):
                 np.array(self.all_actions[1:]) - np.array(self.all_actions[:-1])
             )
             self.reward_info["reward_action_var"] = action_var
-            reward -= 1000
 
         self.reward_info["reward_dist"] += dist_reward
         self.reward_info["reward_angle"] += angle_reward
