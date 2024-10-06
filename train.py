@@ -4,6 +4,7 @@
 import time
 
 import gymnasium as gym
+from gymnasium.utils.colorize import colorize
 import numpy as np
 import wandb
 
