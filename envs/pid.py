@@ -84,7 +84,7 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             Target is reached or Episode length is greater than 3.5 seconds
     """
 
-    def __init__(self, render_mode=None, repeat_action=int(TIME_STEP_DIFF), max_steps=150):
+    def __init__(self, render_mode=None, repeat_action=int(TIME_STEP_DIFF), max_steps=800):
         super().__init__(field_type=0, n_robots_blue=N_ROBOTS_BLUE, n_robots_yellow=N_ROBOTS_YELLOW,
                          time_step=0.025, render_mode=render_mode)
         
@@ -96,7 +96,7 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         )
 
         self.action_space = gym.spaces.Box(low=0, high=1,
-                                           shape=(1, ), dtype=np.float32)
+                                           shape=(3, ), dtype=np.float32)
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
                                                 high=self.NORM_BOUNDS,
                                                 shape=(11, ), dtype=np.float32)
@@ -106,9 +106,9 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         self.actions: Dict = None
         self.v_wheel_deadzone = 0.05
 
-        self.max_kP = 6
+        self.max_kP = 20
         self.max_kD = 20
-        self.max_kI = 0.3
+        self.max_kI = 8 * 0.002
 
         self.last_speed_reward = 0
 
@@ -147,7 +147,10 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             "reward_total": 0,
             "reward_steps": 0,
             "reward_path_consistency": 0,
+            "reward_delta_theta": 0,
         }
+
+        self.target_points = []
 
         self.max_steps = max_steps
 
@@ -160,13 +163,14 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         self.integral = []
         self.accumulated_error = 0
         self.last_error = 0
-        self.sample_time = 200
+        self.sample_time = self.max_steps
 
         # Navigation
         MAX_WHEEL_SPEED = 50 # 50 rad/s
         self.max_v = MAX_WHEEL_SPEED * self.field.rbt_wheel_radius
         self.max_w = np.rad2deg(MAX_WHEEL_SPEED)
 
+        self.speeds = []
 
         print('Environment initialized')
 
@@ -175,6 +179,11 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         self.reward_info = None
         self.previous_target_potential = None
         self.steps = 0
+        self.robot_path = []
+        self.target_points = []
+        self.integral = []
+        self.accumulated_error = 0
+        self.last_error = 0
 
         for ou in self.ou_actions:
             ou.reset()
@@ -245,10 +254,8 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         self.actions = {}
 
         self.actions[0] = actions
-        # kP, kI, kD = self._actions_to_PID(actions)
-        kP = actions[0] * self.max_kP
-
-        v_wheel0, v_wheel1 = self.navigation(kP, 0, 0)
+        kP, kI, kD = self._actions_to_PID(actions)
+        v_wheel0, v_wheel1 = self.navigation(kP, kI, kD)
         commands.append(Robot(yellow=False, id=0, v_wheel0=v_wheel0, v_wheel1=v_wheel1))
 
         self.all_actions.append(kP)
@@ -261,7 +268,8 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         dist_reward, distance = self._dist_reward()
         angle_reward, angle_diff = self._angle_reward()
         path_reward = self._path_consistency_reward()
-
+        delta_theta_reward = self._delta_theta_reward()
+    
         robot_dist = np.linalg.norm(
             np.array(
                 [
@@ -283,12 +291,24 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             distance < DIST_TOLERANCE
             and angle_diff < ANGLE_TOLERANCE
         ):
-            done = True
-            reward = 10
+            if len(self.target_points) == 0:
+                done = True
+                print(colorize("PATH COMPLETED!", "green", bold=True, highlight=True))
+                reward = 100
+            else:
+                self.start_position = self.target_point
+                self.target_point = self.target_points.pop(0)
+                self.target_angle = np.deg2rad(random.uniform(0, 360))
+                
+            reward = 1
             self.reward_info["reward_objective"] += reward
-            print(colorize("TARGET REACHED!", "green", bold=True, highlight=True))
+        elif self.steps >= self.max_steps:
+            done = True
+            points_left = len(self.target_points)
+            print(colorize(f"TIMEOUT! Points left: {points_left}", "red", bold=True, highlight=True))
+            reward = -10 * points_left
         else:
-            reward = dist_reward + angle_reward
+            reward = dist_reward + angle_reward  
 
         if done or self.steps >= self.max_steps:
             # pairwise distance between all actions
@@ -296,15 +316,16 @@ class VSSPIDTuningEnv(VSSBaseEnv):
                 np.array(self.all_actions[1:]) - np.array(self.all_actions[:-1])
             )
             self.reward_info["reward_action_var"] = action_var
+            print(f"Mean velocity: {np.mean(self.speeds)}")
         
-        reward += path_reward - (self.steps - self.max_steps/2) * 2
-
+        reward += path_reward * 10 + delta_theta_reward * 10
 
         self.reward_info["reward_dist"] += dist_reward
         self.reward_info["reward_angle"] += angle_reward
         self.reward_info["reward_total"] += reward
         self.reward_info["reward_path_consistency"] += path_reward
         self.reward_info["reward_steps"] += self.steps
+        self.reward_info["reward_delta_theta"] += delta_theta_reward
 
         return reward, done
 
@@ -330,6 +351,13 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         pos_frame.ball = Ball(x=-4, y=-2)
 
         self.target_point = Point2D(x=get_random_x(), y=get_random_y())
+        n = np.random.randint(8, 12)
+        print(f"Number of points: {n}")
+        self.max_steps = n * 80
+        for _ in range(n):
+            t = Point2D(x=get_random_x(), y=get_random_y())
+            self.target_points.append(t)
+
         self.target_angle = np.deg2rad(get_random_theta())
         random_speed: float = 0
         random_velocity_direction: float = np.deg2rad(get_random_theta())
@@ -391,15 +419,16 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             "reward_total": 0,
             "reward_steps": 0,
             "reward_path_consistency": 0,
+            "reward_delta_theta": 0,
         }
         self.robot_path = [(pos_frame.robots_blue[0].x, pos_frame.robots_blue[0].y)] * 2
 
         return pos_frame
 
     def _actions_to_PID(self, actions):
-        kP = np.clip(abs(actions[0]), 0, self.max_kP)
-        kI = np.clip(abs(actions[1]), 0, self.max_kI)
-        kD = np.clip(abs(actions[2]), 0, self.max_kD)
+        kP = actions[0] * self.max_kP
+        kI = actions[1] * self.max_kI
+        kD = actions[2] * self.max_kD
 
         return kP , kI , kD
     
@@ -441,8 +470,13 @@ class VSSPIDTuningEnv(VSSBaseEnv):
         mean_squared_error = np.mean(squared_error)
         rmse = np.sqrt(mean_squared_error)
 
-        reward = -rmse * 1000
+        reward = -rmse
+
+        return reward
     
+    def _delta_theta_reward(self):
+        delta_theta = abs(np.deg2rad(self.frame.robots_blue[0].theta - self.last_frame.robots_blue[0].theta))
+        reward = -delta_theta
         return reward
 
     def draw_target(self, screen, transformer, point, angle, color):
@@ -468,9 +502,6 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             )
 
         super()._render()
-
-        # kP, kI, kD = self._actions_to_PID(self.cur_action)
-        # v, w = RSimVSSPID.get_velocities(self.rsim, kP, kI, kD)
 
         # Draw Target
         self.draw_target(self.window_surface, pos_transform, self.target_point, self.target_angle, COLORS["PINK"])
@@ -529,17 +560,14 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             angle_error = rear_angle_error
             rear = True
 
-        MILIMETER_OFFSET = 1000
-        pid_output = self.pid(angle_error, kP * MILIMETER_OFFSET, 0, 0)
+        MILIMETER_OFFSET = 100
+        pid_output = self.pid(angle_error, kP * MILIMETER_OFFSET, kI * MILIMETER_OFFSET, kD * MILIMETER_OFFSET)
 
         angular_velocity = np.clip(pid_output, -self.max_w, self.max_w)
 
         linear_velocity = self.calculate_linear_v() / robot_half_axis
 
         left_motor_speed, right_motor_speed = 0, 0
-
-        if dist_to(robot, target) < DIST_TOLERANCE:
-            linear_velocity = 0
 
         left_motor_speed = linear_velocity - (angular_velocity * robot_half_axis / 2)
         right_motor_speed = linear_velocity + (angular_velocity * robot_half_axis / 2)
@@ -557,8 +585,10 @@ class VSSPIDTuningEnv(VSSBaseEnv):
 
         robot_v_length = math.sqrt(vx ** 2 + vy ** 2)
 
-        acc = 1000
-        linear_velocity = robot_v_length + acc * self.time_step
+        acc = 2
+        linear_velocity = robot_v_length + acc * 0.16
+
+        self.speeds.append(linear_velocity)
 
         return np.clip(linear_velocity, 0, self.max_v)
 
@@ -567,11 +597,13 @@ class VSSPIDTuningEnv(VSSBaseEnv):
             self.accumulated_error -= self.integral[0]
             self.integral.pop(0)
 
+        dt = 0.16
+
         self.integral.append(angle_error)
 
         self.accumulated_error += angle_error
 
-        pid_output = kP * angle_error + kI * self.accumulated_error + kD * (angle_error - self.last_error)
+        pid_output = kP * angle_error + kI * self.accumulated_error * dt + kD * ((angle_error - self.last_error) / dt)
 
         self.last_error = angle_error
 
