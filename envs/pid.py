@@ -316,7 +316,6 @@ class VSSPIDTuningEnv(VSSBaseEnv):
                 np.array(self.all_actions[1:]) - np.array(self.all_actions[:-1])
             )
             self.reward_info["reward_action_var"] = action_var
-            print(f"Mean velocity: {np.mean(self.speeds)}")
         
         reward += path_reward * 10 + delta_theta_reward * 10
 
@@ -352,7 +351,7 @@ class VSSPIDTuningEnv(VSSBaseEnv):
 
         self.target_point = Point2D(x=get_random_x(), y=get_random_y())
         n = np.random.randint(8, 12)
-        print(f"Number of points: {n}")
+
         self.max_steps = n * 80
         for _ in range(n):
             t = Point2D(x=get_random_x(), y=get_random_y())
