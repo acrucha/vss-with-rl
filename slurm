@@ -3,8 +3,8 @@
 #SBATCH --mem 32G
 #SBATCH -c 20
 #SBATCH -o vss-pid-ddpg.log
-#SBATCH --output=/home/CIN/mcaa/robocin/vss-rl/vss-pid-ddpg-output.txt
-#SBATCH --error=/home/CIN/mcaa/robocin/vss-rl/vss-pid-ddpg-error.txt
+#SBATCH --output=/home/CIN/mcaa/robocin/vss-with-rl/vss-pid-ddpg-output.txt
+#SBATCH --error=/home/CIN/mcaa/robocin/vss-with-rl/vss-pid-ddpg-error.txt
 
 module load Python/3.10
 module load Xvfb/21.1.6
